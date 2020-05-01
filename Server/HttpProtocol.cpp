@@ -229,8 +229,11 @@ int CHttpProtocol::TcpListen()
     return sock;
 }
 
+bool isdigit(char x) {
+	return x >= '0' && x <= '9';
+}
 
-bool CHttpProtocol::SSLRecvRequest(SSL *ssl,BIO *io, LPBYTE pBuf, DWORD dwBufSize)
+int CHttpProtocol::SSLRecvRequest(SSL *ssl,BIO *io, LPBYTE pBuf, DWORD dwBufSize)
 {
 	//printf("SSLRecvRequest \n");
 	char buf[BUFSIZZ];
@@ -245,6 +248,7 @@ bool CHttpProtocol::SSLRecvRequest(SSL *ssl,BIO *io, LPBYTE pBuf, DWORD dwBufSiz
 		{
 			case SSL_ERROR_NONE:
 				memcpy(&pBuf[length], buf, r);
+				// printf("%s\n", buf);
 				length += r;
 				//printf("Case 1... \r\n");
 				break;
@@ -255,13 +259,41 @@ bool CHttpProtocol::SSLRecvRequest(SSL *ssl,BIO *io, LPBYTE pBuf, DWORD dwBufSiz
 		// ֱ����������HTTPͷ�������Ŀ���
 		if(!strcmp(buf,"\r\n") || !strcmp(buf,"\n"))
 		{
+			if(pBuf[0] == 'P' && pBuf[1] == 'O' && pBuf[2] == 'S' && pBuf[3] == 'T') {
+				
+				// printf("GET POST request!\n");
+				char *str_p = strstr((char *)pBuf, "Content-Length: ");
+				int pos = str_p - (char *)pBuf;
+				pos = pos + 16;
+				int data_length = 0;
+				while(isdigit(pBuf[pos])) {
+					data_length = data_length * 10 + pBuf[pos] - '0';
+					pos++;
+				}
+				// printf("%d\n", data_length);
+				
+				while(data_length > 0) {
+					r = BIO_gets(io, buf, data_length + 1);
+					switch(SSL_get_error(ssl, r)) {
+						case SSL_ERROR_NONE:
+							memcpy(&pBuf[length], buf, r);
+							// printf("%s\n", buf);
+							length += r;
+							data_length -= r;
+							break;
+						default:
+							break;
+					}
+				}
+				// printf("GET POST end!\n");
+			}
 			printf("IF...\r\n");
 			break;
 		}
   }
 	// ���ӽ�����
 	pBuf[length] = '\0';
-	return true;
+	return length;
 }
 bool CHttpProtocol::StartHttpSrv()
 {
@@ -272,8 +304,14 @@ bool CHttpProtocol::StartHttpSrv()
 	pid_t pid;
 	m_listenSocket = TcpListen();          // 设置监听进程，负责处理请求
 
-	pthread_t listen_tid;
-	pthread_create(&listen_tid,NULL,&ListenThread,this);	// 创建线程运行ListenThread函数
+	pid = fork();
+	if (pid < 0) printf("ERROR: fork error!\n");
+	else if (pid == 0) {
+		ListenThread(this);
+	}
+	
+	// pthread_t listen_tid;
+	// pthread_create(&listen_tid,NULL,&ListenThread,this);	// 创建线程运行ListenThread函数
 }
 
 void * CHttpProtocol::ListenThread(LPVOID param)
@@ -312,7 +350,12 @@ void * CHttpProtocol::ListenThread(LPVOID param)
 
 	    // 创建client进程处理request
 		//printf("New request");
-		pthread_create(&client_tid,NULL,&ClientThread,pReq);
+		pid_t pid;
+		pid = fork();
+		if (pid < 0) printf("ERROR: fork error!\n");
+		else if (pid == 0) {
+			ClientThread(pReq);
+		}
 	} //while
 
 		return NULL;
@@ -323,7 +366,7 @@ void * CHttpProtocol::ClientThread(LPVOID param)
 	printf("Starting ClientThread... \n");
 	int nRet;
 	SSL *ssl;
-	BYTE buf[4096];
+	BYTE buf[8196];
 	BIO *sbio,*io, *ssl_bio;
 	PREQUEST pReq = (PREQUEST)param;
 	CHttpProtocol *pHttpProtocol = (CHttpProtocol *)pReq->pHttpProtocol;
@@ -340,8 +383,8 @@ void * CHttpProtocol::ClientThread(LPVOID param)
 	}
     if(nRet <= 0)
 		{
-			pHttpProtocol->err_exit((char*)"SSL_accept()error! \r\n");
-			//return 0;
+			//pHttpProtocol->err_exit((char*)"SSL_accept()error! \r\n");
+			return 0;
 		}
 		
     io = BIO_new(BIO_f_buffer());			//��װ�˻�����������BIO��д��ýӿڵ�����һ����׼����
@@ -355,16 +398,21 @@ void * CHttpProtocol::ClientThread(LPVOID param)
 	
 	// 接受request data
 	printf("****************\r\n");
-	if (!pHttpProtocol->SSLRecvRequest(ssl,io,buf,sizeof(buf)))
+	int msgLen = 0;
+	if ((msgLen = pHttpProtocol->SSLRecvRequest(ssl,io,buf,sizeof(buf))) < 0)
 	{
 		pHttpProtocol->err_exit((char*)"Receiving SSLRequest error!! \r\n");
 	}
 	else
 	{
-			printf("Request received!! \n");
-			printf("%s \n",buf);		
+			printf("Request received!! lenght: %d\n", msgLen);
+			printf("%s \n", buf);		
 			//return 0;								
 	}
+	if (msgLen > 0) {
+		pHttpProtocol->MsgTrans(pHttpProtocol, ssl, io, buf, msgLen);
+	}
+	/*
 	nRet = pHttpProtocol->Analyze(pReq, buf);
 	if (nRet)
 	{	
@@ -390,11 +438,89 @@ void * CHttpProtocol::ClientThread(LPVOID param)
 		}
 	}
 	printf("File sent!!");
+	*/
 	//pHttpProtocol->Test(pReq);
 	pHttpProtocol->Disconnect(pReq);
 	delete pReq;
 	SSL_free(ssl);
 	return NULL;
+}
+
+void CHttpProtocol::MsgTrans(CHttpProtocol *pHttpProtocol, SSL *ssl, BIO *io, unsigned char *msgBuf, int msgLen) {
+	int skfd;
+	unsigned char buf[8196];
+	struct sockaddr_in sockAddr;
+	
+	printf("Starting connecting to webserver!\n");
+	
+	if ((skfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		printf("ERROR: webserver socket error!\n");
+		return;
+	}
+	
+	memset(&sockAddr, 0, sizeof(sockaddr_in));
+	sockAddr.sin_family = AF_INET;
+	sockAddr.sin_addr.s_addr = inet_addr("0.0.0.0");
+	sockAddr.sin_port = htons(HTTPPORT);
+	
+	if(connect(skfd, (struct sockaddr *)(&sockAddr), sizeof(sockaddr))) {
+		printf("ERROR: webserver connect error!\n");
+		close(skfd);
+		return;
+	}
+	unsigned int size = 0, nodeSize = 0, msize = 0;
+	while(size < msgLen) {
+		if( (nodeSize = write(skfd, msgBuf + size, msgLen - size)) < 0) {
+			printf("ERROR: webserver sending error!\n");
+			close(skfd);
+			return;
+		}
+		size += nodeSize;
+	}
+	
+	
+	printf("OK: finished sending to webserver!\n");
+	
+	
+
+	// bool flag = true;
+	while(memset(buf, 0, sizeof(buf)), (msize = read(skfd, buf, sizeof(buf) - 5)) > 0) {
+		size = 0;
+		{
+			// printf("Changing!\n");
+			const char str_http[] = "Location: http://";
+			char *str_p = strstr((char *)buf, str_http);
+			if (str_p != NULL) {
+				// printf("Changing!\n");
+				int pos = str_p - (char *)buf;
+				pos = pos + 14;
+				for (int i = msize - 1; i >= pos; i--) {
+					buf[i + 1] = buf[i];
+				}
+				buf[pos] = 's';
+				msize += 1;
+			}
+			
+		}
+		// printf("%d\n", msize);
+		while (size < msize) {
+			// printf("%d\n", size);
+			nodeSize = BIO_write(io, buf + size, msize - size);
+			if (nodeSize <= 0) {
+				if (!BIO_should_retry(io)) {
+					printf("ERROR: BIO_write() error!\n");
+					close(skfd);
+					return;
+				}
+			}
+			BIO_flush(io);
+			size += nodeSize;
+			// printf("%d\n", size);
+		}
+	}
+	printf("OK: finished receive from webserver!\n");
+	
+	close(skfd);	
 }
 
 int  CHttpProtocol::Analyze(PREQUEST pReq, LPBYTE pBuf)

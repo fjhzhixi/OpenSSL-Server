@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include<arpa/inet.h>
 
@@ -21,7 +22,9 @@
 #include <openssl/bio.h>
 #include <openssl/err.h>
 
+#define BUF_SIZE 8196
 #define HTTPSPORT 8000
+#define HTTPPORT 5000
 #define METHOD_GET 0
 #define METHOD_HEAD 1
 

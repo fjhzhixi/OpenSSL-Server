@@ -45,11 +45,12 @@ public:
 	void SendFile(PREQUEST pReq);											// 发送文件
 	bool SendBuffer(PREQUEST pReq, LPBYTE pBuf, DWORD dwBufSize);			// 发送缓冲区内容
 public:
-	bool SSLRecvRequest(SSL *ssl,BIO *io, LPBYTE pBuf, DWORD dwBufSize);	// 接受https请求
+	int SSLRecvRequest(SSL *ssl,BIO *io, LPBYTE pBuf, DWORD dwBufSize);	// 接受https请求
 	bool SSLSendHeader(PREQUEST pReq, BIO *io);								// 发送https头
 	bool SSLSendFile(PREQUEST pReq, BIO *io);								// 由SSL通道发送文件
 	bool SSLSendBuffer(PREQUEST pReq, LPBYTE pBuf, DWORD dwBufSize);
 public:
 	~CHttpProtocol(void);
 	void Test(PREQUEST pReq);
+	void MsgTrans(CHttpProtocol *pHttpProtocol, SSL *ssl, BIO *io, unsigned char *msgBuf, int msgLen);
 };

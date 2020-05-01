@@ -10,7 +10,7 @@ int main()
 	BIO *io;
 	bool bRet;
 	bRet = MyHttpObj.SSLRecvRequest(ssl,io,buf,sizeof(buf));
-	//printf("stop1\n");
+	printf("stop1\n");
 	if(!bRet)
 		{
 			MyHttpObj.err_exit((char*)"Receiving request error! \n");
