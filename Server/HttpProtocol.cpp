@@ -233,6 +233,11 @@ bool isdigit(char x) {
 	return x >= '0' && x <= '9';
 }
 
+int min_(int x, int y) {
+	if (x < y) return x;
+	else return y;
+}
+
 int CHttpProtocol::SSLRecvRequest(SSL *ssl,BIO *io, LPBYTE pBuf, DWORD dwBufSize)
 {
 	//printf("SSLRecvRequest \n");
@@ -259,34 +264,7 @@ int CHttpProtocol::SSLRecvRequest(SSL *ssl,BIO *io, LPBYTE pBuf, DWORD dwBufSize
 		// ֱ����������HTTPͷ�������Ŀ���
 		if(!strcmp(buf,"\r\n") || !strcmp(buf,"\n"))
 		{
-			if(pBuf[0] == 'P' && pBuf[1] == 'O' && pBuf[2] == 'S' && pBuf[3] == 'T') {
-				
-				// printf("GET POST request!\n");
-				char *str_p = strstr((char *)pBuf, "Content-Length: ");
-				int pos = str_p - (char *)pBuf;
-				pos = pos + 16;
-				int data_length = 0;
-				while(isdigit(pBuf[pos])) {
-					data_length = data_length * 10 + pBuf[pos] - '0';
-					pos++;
-				}
-				// printf("%d\n", data_length);
-				
-				while(data_length > 0) {
-					r = BIO_gets(io, buf, data_length + 1);
-					switch(SSL_get_error(ssl, r)) {
-						case SSL_ERROR_NONE:
-							memcpy(&pBuf[length], buf, r);
-							// printf("%s\n", buf);
-							length += r;
-							data_length -= r;
-							break;
-						default:
-							break;
-					}
-				}
-				// printf("GET POST end!\n");
-			}
+			
 			printf("IF...\r\n");
 			break;
 		}
@@ -469,15 +447,60 @@ void CHttpProtocol::MsgTrans(CHttpProtocol *pHttpProtocol, SSL *ssl, BIO *io, un
 		return;
 	}
 	unsigned int size = 0, nodeSize = 0, msize = 0;
-	while(size < msgLen) {
-		if( (nodeSize = write(skfd, msgBuf + size, msgLen - size)) < 0) {
-			printf("ERROR: webserver sending error!\n");
-			close(skfd);
-			return;
-		}
-		size += nodeSize;
-	}
 	
+	
+	if(msgBuf[0] == 'P' && msgBuf[1] == 'O' && msgBuf[2] == 'S' && msgBuf[3] == 'T') {
+				
+		// printf("GET POST request!\n");
+		char *str_p = strstr((char *)msgBuf, "Content-Length: ");
+		int pos = str_p - (char *)msgBuf;
+		pos = pos + 16;
+		int data_length = 0;
+		while(isdigit(msgBuf[pos])) {
+			data_length = data_length * 10 + msgBuf[pos] - '0';
+			pos++;
+		}
+		// printf("%d\n", data_length);
+		int totalLen = msgLen + data_length;
+		unsigned char *postBuf = (unsigned char *)malloc(totalLen);
+		memcpy(postBuf, msgBuf, msgLen);
+		while(data_length > 0) {
+			memset(buf, 0, sizeof buf);
+			int r = BIO_gets(io, (char *)buf, min_(data_length + 1, sizeof(buf) - 1));
+			switch(SSL_get_error(ssl, r)) {
+				case SSL_ERROR_NONE:
+					// printf("[LENGTH: %d] %s", r, buf);
+					memcpy(postBuf + msgLen, buf, r);
+					msgLen += r;
+					
+					data_length -= r;
+					break;
+				default:
+					break;
+			}
+		}
+		// printf("GET POST end!\n");
+
+		while(size < msgLen) {
+			if( (nodeSize = write(skfd, postBuf + size, msgLen - size)) < 0) {
+				printf("ERROR: webserver sending error!\n");
+				close(skfd);
+				return;
+			}
+			size += nodeSize;
+		}
+		free(postBuf);
+	}
+	else {
+		while(size < msgLen) {
+			if( (nodeSize = write(skfd, msgBuf + size, msgLen - size)) < 0) {
+				printf("ERROR: webserver sending error!\n");
+				close(skfd);
+				return;
+			}
+			size += nodeSize;
+		}
+	}
 	
 	printf("OK: finished sending to webserver!\n");
 	
