@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+        <script src="{{ url_for('static', filename='js/jquery-3.4.1.min.js')}}"></script>
+        <script src="{{ url_for('static', filename='js/bootstrap.min.js')}}"></script>
+    </head>
+    <body background="{{ url_for('static', filename='backgroud1.jpg') }}">
+        {% if error %}
+            <script>
+                alert("{{ error }}")
+            </script>
+        {% endif %}
+        {% if tishi %}
+            <script>
+                alert("注册成功！账户号：{{tishi}}")
+            </script>
+        {% endif %}
+        <form action = "" method = "post" style="text-align: center; margin-top: 200px;">
+            <div class="form-group">
+                <label style="display: inline;">账号：</label>
+                <input type = "text" name = "accout"/>
+            </div>
+            <div class="form-group">
+                <label style="display: inline;">密码：</label>
+                <input type = "text" name = "password"/>
+            </div>
+            <input class = "btn btn-default" style="white-space:nowrap" type = "submit" value = "登录"/>
+            <a class = "btn btn-default" style="white-space:nowrap" href="{{ url_for('register') }}">注册</a>
+        </form>
+    </body>
+</html>

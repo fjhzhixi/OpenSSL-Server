@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>欢迎注册</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+        <script src="{{ url_for('static', filename='js/jquery-3.4.1.min.js')}}"></script>
+        <script src="{{ url_for('static', filename='js/bootstrap.min.js')}}"></script>
+    </head>
+    <body background="{{ url_for('static', filename='background2.jpg') }}">
+        <form action = "" method = "post" style="margin-left: 500px;margin-top: 200px;">
+            <div class="form-group">
+                <label style="display: inline;">用户名：</label>
+                <input type="text" name="name">
+            </div>
+            <div class="form-group">
+                <label style="display: inline;">密码：</label>
+                <input type="text" name="password">
+            </div>
+            <div class="form-group">
+                <label style="display: inline;">用户类型：</label>
+                <input type="text" name="type">
+            </div>
+                <input class = "btn btn-default" style="white-space:nowrap" type="submit" value="注册">
+        </form>
+    </body>
+</html>

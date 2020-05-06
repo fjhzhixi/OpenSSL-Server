@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>安全盘</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <script src="{{ url_for('static', filename='js/jquery-3.4.1.min.js')}}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js')}}"></script>
+</head>
+<body background="{{ url_for('static', filename='pic1.jpg') }}">
+    <div class = "navbar-head pull-right" >
+        <h4 style="display: inline">欢迎，{{ name }}</h4>
+        <a href = "{{ url_for('register') }}" class="btn btn-default">注册</a>
+        <a href = "{{ url_for('logout') }}" class="btn btn-default">登出</a>
+    </div>
+    <table class="table">
+    <thead>
+        <tr>
+            <td>编号</td>
+            <td>名称</td>
+            <td>价格</td>
+            <td>发行商</td>
+            <td>评分</td>
+            <td>商店链接</td>
+        </tr>
+    </thead>
+    <tbody>
+        <form id="form1" method="post" action="/api/upload" enctype="multipart/form-data">
+            <div>
+                <input id="File1" type="file" name="myfile"/>
+                <input type="submit">提交</input>
+            </div>
+        </form>
+    {% for each in game %}
+        <tr>
+            <td>{{each['game_id']}}</td>
+            <td>{{each['game_name']}}</td>
+            <td>{{each['game_price']}}</td>
+            <td>{{each['provider_name']}}</td>
+            <td>{{each['evaluation']}}</td>
+            <td>
+                <a href = "{{ url_for('shop', id = each['game_id']) }}">点我</a>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+
+</body>
+</html>
