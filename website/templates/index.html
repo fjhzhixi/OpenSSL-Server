@@ -53,7 +53,7 @@
 			height:40px;
 			line-height:40px;
 			text-align: center;
-			background:#BE1A21;
+			background:rgb(75, 104, 233);
 			font-size:18px;
 			color:#fff;
 			cursor:pointer;
@@ -73,7 +73,7 @@
               <a class="navbar-brand" href="#">安全盘</a> 
           </div> 
           <ul class="nav navbar-nav navbar-right"> 
-              <li><a href="#"><span class="glyphicon glyphicon-user"></span>我的账户</a></li> 
+              <li><a href="#"><span class="glyphicon glyphicon-user"></span>{{ name }}</a></li> 
               <li><a href="{{ url_for('logout') }}"><span class="glyphicon glyphicon-log-in"></span>登出</a></li> 
           </ul> 
       </div> 
@@ -93,13 +93,11 @@
     <div>
       <form method="post" action="/api/upload" enctype="multipart/form-data">
         <label for="file" id="myfile">上传文件</label>
-        <input type="file" id="file" name="myfile"></input>
-        <button type="submit">提交</button>
+        <input type="file" style="display:inline-block;float: right;" id="file" name="myfile"></input><button tyle="float:left" type="submit">提交</button>
       </form>
     </div>
     <div>
       <p id="fileName"></p>
-      <img src="" id="fileImg">
     </div>
     <script>
       $("#file").on("change",function(){
@@ -123,24 +121,27 @@
         <div class="grid">
         {% for each in file %}
           <div class="grid-item">
-            {% if each['postfix'] == 'word' %}
-            <img src="{{ url_for('static', filename='word.svg') }}", style="width:90%;height:90%;">
-            {% elif each['postfix'] == 'excel' %}
-            <img src="{{ url_for('static', filename='excel.svg') }}", style="width:90%;height:90%;">
-            {% elif each['postfix'] == 'ppt' %}
-            <img src="{{ url_for('static', filename='ppt.svg') }}", style="width:90%;height:90%;">
-            {% elif each['postfix'] == 'pdf' %}
-            <img src="{{ url_for('static', filename='pdf.svg') }}", style="width:90%;height:90%;">
-            {% elif each['postfix'] == 'txt' %}
-            <img src="{{ url_for('static', filename='text.svg') }}", style="width:90%;height:90%;">
-            {% elif each['postfix'] == 'png' or 
-                    each['postfix'] == 'jpg' or
-                    each['postfix'] == 'svg'
-            %}
-            <img src="{{ url_for('static', filename='img.svg') }}", style="width:90%;height:90%;">
-            {% else %}
-            <img src="{{ url_for('static', filename='default.svg') }}", style="width:90%;height:90%;">
-            {% endif %}
+            <a href="/api/download/{{ each['name'] }}"}>
+              {% if each['postfix'] == 'word' %}
+              <img src="{{ url_for('static', filename='word.svg') }}", style="width:90%;height:90%;">
+              {% elif each['postfix'] == 'excel' %}
+              <img src="{{ url_for('static', filename='excel.svg') }}", style="width:90%;height:90%;">
+              {% elif each['postfix'] == 'ppt' %}
+              <img src="{{ url_for('static', filename='ppt.svg') }}", style="width:90%;height:90%;">
+              {% elif each['postfix'] == 'pdf' %}
+              <img src="{{ url_for('static', filename='pdf.svg') }}", style="width:90%;height:90%;">
+              {% elif each['postfix'] == 'txt' %}
+              <img src="{{ url_for('static', filename='text.svg') }}", style="width:90%;height:90%;">
+              {% elif each['postfix'] == 'png' or 
+                      each['postfix'] == 'jpg' or
+                      each['postfix'] == 'svg'
+              %}
+              <img src="{{ url_for('static', filename='img.svg') }}", style="width:90%;height:90%;">
+              {% else %}
+              <img src="{{ url_for('static', filename='default.svg') }}", style="width:90%;height:90%;">
+              {% endif %}
+            </a>
+            <p style="text-align:center">{{ each['name'] }}</p>
           </div>
         {% endfor %}
         </div>

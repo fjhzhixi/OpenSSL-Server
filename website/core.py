@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, session, jsonify
+from flask import Flask, render_template, redirect, url_for, request, session, jsonify, send_file, send_from_directory, make_response
 from werkzeug.utils import secure_filename
 from sql import *
 
@@ -11,13 +11,13 @@ app.config["SECRET_KEY"] = "010016"
 UPLOAD_FOLDER = "upload"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 basedir = os.path.abspath(os.path.dirname(__file__))
-ALLOWED_EXTENSIONS = set(['txt', 'png', 'jpg', 'xls', 'JPG', 'PNG', 'xlsx', 'gif', 'GIF'])
+ALLOWED_EXTENSIONS = set(['txt', 'png', 'jpg', 'pdf', 'word', 'excel', 'ppt'])
 tishiforindex = None
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
-sys = Sql('xuqiang')    #此处修改数据库登录密码
+sql = Sql('xuqiang')
 
 @app.route('/api/upload', methods = ['POST'], strict_slashes = False)
 def api_upload():
@@ -28,10 +28,11 @@ def api_upload():
     if f and allowed_file(f.filename):
         fname = secure_filename(f.filename)
         print(fname)
-        fpath = os.path.join(file_dir, fname)
+        # fpath = os.path.join(file_dir, fname)
+        fpath = file_dir # 文件路径为文件所在文件夹
         try:
             print(fpath)
-            sys.upload_file(fname, fpath)
+            sql.upload_file(fname, fpath)
         except HasnotSigninException as err:
             tishiforindex = "用户未登录！"
             return redirect(url_for('index'))
@@ -43,12 +44,20 @@ def api_upload():
         tishiforindex = "文件格式不符合要求"
         return redirect(url_for('index'))
 
+@app.route('/api/download/<filename>', methods = ['GET'])
+def download_file(filename):
+    directory = sql.select_file_path_by_name(filename)
+    response = make_response(send_from_directory(directory, filename, as_attachment=True))
+    response.headers["Content-Disposition"] = "attachment; filename={}".format(filename.encode().decode('latin-1'))
+    return response
+
+
 @app.route('/register', methods = ['GET', 'POST'])
 def register():
     if request.method == 'POST':
         print("registering")
         try:
-            sys.sign_up(request.form['userid'], request.form['name'], request.form['password'])
+            sql.sign_up(request.form['userid'], request.form['name'], request.form['password'])
         except AccountAlreadyExistError as err:
             return render_template('register.html', tishi = err)
         else:
@@ -59,7 +68,7 @@ def register():
 def login():
     if request.method == 'POST':
         try:
-            sys.sign_in(request.form['userid'], request.form['password'])
+            sql.sign_in(request.form['userid'], request.form['password'])
         except NoneAccountFoundError as err:
             return render_template('login.html', error = err, tishi = None)
         except MultAccountFoundError as err:
@@ -71,7 +80,7 @@ def login():
 
 @app.route('/logout')
 def logout():
-    sys.sign_out()
+    sql.sign_out()
     session.pop('userid')
     return redirect(url_for('login'))
 
@@ -81,13 +90,14 @@ def index():
     if user_id == None:
         print('failure')
         return redirect(url_for('login'))
-    user_name = sys.get_curent_user_name()
-    fileids = sys.select_all_fileid()
+    user_name = sql.get_curent_user_name()
+    fileids = sql.select_all_fileid()
     filelist = []
     for each in fileids:
         file = dict()
-        filename = sys.select_file_name(each)
-        file['name'] = filename.rsplit('.', 1)[0]
+        filename = sql.select_file_name(each)
+        print(sql.select_file_path(each))
+        file['name'] = filename     # filename带后缀名
         file['postfix'] = filename.rsplit('.', 1)[1]
         filelist.append(file)
     return render_template('index.html', file = filelist, name = user_name, tishi = None)

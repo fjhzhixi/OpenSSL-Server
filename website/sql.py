@@ -44,7 +44,7 @@ class MultiFilesExistError(Exception):
 
 class Sql():
     def __init__(self, password):
-        self.db = pymysql.connect("localhost", "root", password, "networksafety")    #此处修改数据库其他登录信息
+        self.db = pymysql.connect("localhost", "root", password, "networksafety")
         self.cursor = self.db.cursor()
         self.cur_user_id = ''
         self.has_login = False
@@ -272,9 +272,23 @@ class Sql():
             raise HasnotSigninException("has not sign in")
         sql = """
             select FileId from File
-            where FileName = \'%s\' and FilePaht = \'%s\'
+            where FileName = \'%s\' and FilePath = \'%s\'
             and UserId = \'%s\'
         """ % (file_name, file_path, self.cur_user_id)
+        self.cursor.execute(sql)
+        rows = self.cursor.fetchall()
+        return rows[0][0]
+
+    # 参数类型为str, str
+    # 根据用户ID和文件名查找文件路径
+    # 返回类型str
+    def select_file_path_by_name(self, file_name):
+        if self.has_login == False:
+            raise HasnotSigninException("has not sign in")
+        sql = """
+            select FilePath from File
+            where UserId = \'%s\' and FileName = \'%s\'
+        """ % (self.cur_user_id, file_name)
         self.cursor.execute(sql)
         rows = self.cursor.fetchall()
         return rows[0][0]
