@@ -17,7 +17,7 @@ tishiforindex = None
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
-sql = Sql('997273')
+sql = Sql('password')   # 此处改成自己的password
 
 @app.route('/api/upload', methods = ['POST'], strict_slashes = False)
 def api_upload():
