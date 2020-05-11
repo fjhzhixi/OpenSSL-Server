@@ -8,45 +8,157 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <script src="{{ url_for('static', filename='js/jquery-3.4.1.min.js')}}"></script>
     <script src="{{ url_for('static', filename='js/bootstrap.min.js')}}"></script>
-</head>
-<body background="{{ url_for('static', filename='pic1.jpg') }}">
-    <div class = "navbar-head pull-right" >
-        <h4 style="display: inline">欢迎，{{ name }}</h4>
-        <a href = "{{ url_for('register') }}" class="btn btn-default">注册</a>
-        <a href = "{{ url_for('logout') }}" class="btn btn-default">登出</a>
-    </div>
-    <table class="table">
-    <thead>
-        <tr>
-            <td>编号</td>
-            <td>名称</td>
-            <td>价格</td>
-            <td>发行商</td>
-            <td>评分</td>
-            <td>商店链接</td>
-        </tr>
-    </thead>
-    <tbody>
-        <form id="form1" method="post" action="/api/upload" enctype="multipart/form-data">
-            <div>
-                <input id="File1" type="file" name="myfile"/>
-                <input type="submit">提交</input>
-            </div>
-        </form>
-    {% for each in game %}
-        <tr>
-            <td>{{each['game_id']}}</td>
-            <td>{{each['game_name']}}</td>
-            <td>{{each['game_price']}}</td>
-            <td>{{each['provider_name']}}</td>
-            <td>{{each['evaluation']}}</td>
-            <td>
-                <a href = "{{ url_for('shop', id = each['game_id']) }}">点我</a>
-            </td>
-        </tr>
-    {% endfor %}
-    </tbody>
-    </table>
+    <style type="text/css">
+		.demo {
+		  position: relative;
+		  opacity: 0;
+		  transition: .2s ease;
+		  margin-bottom: 60px;
+		}
 
+		.grid {
+		  position: relative;
+		  /* fluffy */
+		  margin: 0 auto;
+		  width: 98%;
+		  /* end fluffy */
+		}
+
+		.grid-item {
+		  position: absolute;
+		  top: 0;
+		  left: 0;
+		   /* fluffy */
+		   width: 180px;
+		   height: 120px;
+		   border-radius: 3px;
+		   background-color: transparent;
+		   /* end fluffy */
+		   -webkit-transition: .3s ease-in-out;
+		   -o-transition: .3s ease-in-out;
+		   transition: .3s ease-in-out;
+		}
+		/* mq */
+		@media (max-width: 600px) {
+		  .grid-item {
+		    width: 120px;
+		    height: 80px;
+		  }
+		}
+  </style>
+  <style type="text/css">
+		label{
+			display:inline-block;
+			width:160px;
+			height:40px;
+			line-height:40px;
+			text-align: center;
+			background:rgb(75, 104, 233);
+			font-size:18px;
+			color:#fff;
+			cursor:pointer;
+		}
+		/*隐藏默认样式*/
+		input[id=file]{
+			margin-left:-2000px;
+			height:0;
+		}
+	</style>
+</head>
+<body>
+    <!--导航栏-->
+    <nav class="navbar navbar-default" role="navigation"> 
+      <div class="container-fluid"> 
+          <div class="navbar-header"> 
+              <a class="navbar-brand" href="#">安全盘</a> 
+          </div> 
+          <ul class="nav navbar-nav navbar-right"> 
+              <li><a href="#"><span class="glyphicon glyphicon-user"></span>{{ name }}</a></li> 
+              <li><a href="{{ url_for('logout') }}"><span class="glyphicon glyphicon-log-in"></span>登出</a></li> 
+          </ul> 
+      </div> 
+    </nav>
+    <!--上传文件-->
+    
+    <!--
+    <div>
+      <form method="post" action="/api/upload" enctype="multipart/form-data">
+            <input type="file" name="myfile"/></input>
+            <input type="submit" value="提交"></input>
+      </form>
+    </div>
+  -->
+    
+    
+    <div>
+      <form method="post" action="/api/upload" enctype="multipart/form-data">
+        <label for="file" id="myfile">上传文件</label>
+        <input type="file" style="display:inline-block;float: right;" id="file" name="myfile"></input><button tyle="float:left" type="submit">提交</button>
+      </form>
+    </div>
+    <div>
+      <p id="fileName"></p>
+    </div>
+    <script>
+      $("#file").on("change",function(){
+        //截取路径，获取上传文件名
+        var urlArr = this.value.split("\\");
+        if (this && this.files && this.files[0]) {
+          document.getElementById("fileName").innerHTML = urlArr[urlArr.length-1];
+          var fileUrl = URL.createObjectURL(this.files[0]);
+          document.getElementById("fileImg").src = fileUrl;
+        }else{
+          //兼容IE9以下
+          document.getElementById("fileName").innerHTML = urlArr[urlArr.length-1];
+          document.getElementById("fileImg").style.filter = "progid:DXImageTransform.Microsoft.AlphaImageLoader(sizingMethod=scale)";
+                  document.getElementById("fileImg").filters.item("DXImageTransform.Microsoft.AlphaImageLoader").src = this.value;
+        }
+      });
+    </script>
+
+    <!--显示该用户的文件-->
+    <div class="demo">
+        <div class="grid">
+        {% for each in file %}
+          <div class="grid-item">
+            <a href="/api/download/{{ each['name'] }}"}>
+              {% if each['postfix'] == 'word' %}
+              <img src="{{ url_for('static', filename='word.svg') }}", style="width:90%;height:90%;">
+              {% elif each['postfix'] == 'excel' %}
+              <img src="{{ url_for('static', filename='excel.svg') }}", style="width:90%;height:90%;">
+              {% elif each['postfix'] == 'ppt' %}
+              <img src="{{ url_for('static', filename='ppt.svg') }}", style="width:90%;height:90%;">
+              {% elif each['postfix'] == 'pdf' %}
+              <img src="{{ url_for('static', filename='pdf.svg') }}", style="width:90%;height:90%;">
+              {% elif each['postfix'] == 'txt' %}
+              <img src="{{ url_for('static', filename='text.svg') }}", style="width:90%;height:90%;">
+              {% elif each['postfix'] == 'png' or 
+                      each['postfix'] == 'jpg' or
+                      each['postfix'] == 'svg'
+              %}
+              <img src="{{ url_for('static', filename='img.svg') }}", style="width:90%;height:90%;">
+              {% else %}
+              <img src="{{ url_for('static', filename='default.svg') }}", style="width:90%;height:90%;">
+              {% endif %}
+            </a>
+            <p style="text-align:center">{{ each['name'] }}</p>
+          </div>
+        {% endfor %}
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/minigrid.js')}}"></script>
+    <script>
+        (function(){
+          minigrid('.grid', '.grid-item', 6, null, 
+            function(){
+              var d = document.querySelector('.demo');
+              d.style.opacity = 1;
+            }
+          );
+          window.addEventListener('resize', function(){
+            minigrid('.grid', '.grid-item');
+          });
+        })();
+    </script>
 </body>
 </html>
