@@ -27,12 +27,12 @@ def api_upload():
     f = request.files['myfile']
     if f and allowed_file(f.filename):
         fname = secure_filename(f.filename)
-        print(fname)
         # fpath = os.path.join(file_dir, fname)
         fpath = file_dir # 文件路径为文件所在文件夹
+        print(fpath)
         try:
-            print(fpath)
-            sql.upload_file(fname, fpath)
+            fpath_new = fpath.replace('\\', '\\\\')
+            sql.upload_file(fname, fpath_new)
         except HasnotSigninException as err:
             tishiforindex = "用户未登录！"
             return redirect(url_for('index'))
@@ -47,6 +47,8 @@ def api_upload():
 @app.route('/api/download/<filename>', methods = ['GET'])
 def download_file(filename):
     directory = sql.select_file_path_by_name(filename)
+    print(directory)
+    print(filename)
     response = make_response(send_from_directory(directory, filename, as_attachment=True))
     response.headers["Content-Disposition"] = "attachment; filename={}".format(filename.encode().decode('latin-1'))
     return response
@@ -96,7 +98,6 @@ def index():
     for each in fileids:
         file = dict()
         filename = sql.select_file_name(each)
-        print(sql.select_file_path(each))
         file['name'] = filename     # filename带后缀名
         file['postfix'] = filename.rsplit('.', 1)[1]
         filelist.append(file)
