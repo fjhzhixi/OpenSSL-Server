@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, session, jsonify, send_file, send_from_directory, make_response
+from flask import Flask, render_template, redirect, url_for, request, session, json, send_file, send_from_directory, make_response, Response
 from werkzeug.utils import secure_filename
 from sql import *
 
@@ -8,6 +8,7 @@ import base64
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "010016"
+app.config['JSON_AS_ASCII'] = False
 UPLOAD_FOLDER = "upload"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -85,6 +86,18 @@ def logout():
     sql.sign_out()
     session.pop('userid')
     return redirect(url_for('login'))
+
+@app.route('/sendkey', methods = ['POST'])
+def key_data():
+    data_ = request.form['data']
+    data = json.loads(data_)
+    pubkey = data['pubkey']
+    #seed = rsa.encrypt(aseKey, pubkey)
+    info=dict()
+    info['seed'] = pubkey
+    resp = Response(json.dumps(info), mimetype='application/json')
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
 
 @app.route('/')
 def index():
