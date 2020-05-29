@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <script src="{{ url_for('static', filename='js/jquery-3.4.1.min.js')}}"></script>
     <script src="{{ url_for('static', filename='js/bootstrap.min.js')}}"></script>
+    <script src="{{ url_for('static', filename='js/jsencrypt.min.js')}}"></script>
+    <script src="{{ url_for('static', filename='js/crypto-js.js')}}"></script>
     <style type="text/css">
 		.demo {
 		  position: relative;
@@ -91,13 +93,21 @@
     
     
     <div>
-      <form method="post" action="/api/upload" enctype="multipart/form-data">
+      <!--form id = "upload" method="post" action="/api/upload" enctype="multipart/form-data"-->
         <label for="file" id="myfile">上传文件</label>
-        <input type="file" style="display:inline-block;float: right;" id="file" name="myfile"></input><button tyle="float:left" type="submit">提交</button>
-      </form>
+        <input type="file" style="display:inline-block;float: right;" id="file" name="myfile"></input>
+        <button tyle="float:left" type="submit" id= "fileUpload">提交</button>
     </div>
     <div>
       <p id="fileName"></p>
+    </div>
+    <div>
+      公钥文件：<br>
+      <input type="file" id="pubFile" style="display: none" onchange="PubImport();">
+      <input type="button" id="pubImport" value="导入公钥"><br>
+      私钥文件：<br>
+      <input type="file" id="priFile" style="display: none" onchange="PriImport();">
+      <input type="button" id="priImport" value="导入私钥">
     </div>
     <script>
       $("#file").on("change",function(){
@@ -105,13 +115,6 @@
         var urlArr = this.value.split("\\");
         if (this && this.files && this.files[0]) {
           document.getElementById("fileName").innerHTML = urlArr[urlArr.length-1];
-          var fileUrl = URL.createObjectURL(this.files[0]);
-          document.getElementById("fileImg").src = fileUrl;
-        }else{
-          //兼容IE9以下
-          document.getElementById("fileName").innerHTML = urlArr[urlArr.length-1];
-          document.getElementById("fileImg").style.filter = "progid:DXImageTransform.Microsoft.AlphaImageLoader(sizingMethod=scale)";
-                  document.getElementById("fileImg").filters.item("DXImageTransform.Microsoft.AlphaImageLoader").src = this.value;
         }
       });
     </script>
@@ -159,6 +162,87 @@
             minigrid('.grid', '.grid-item');
           });
         })();
+    </script>
+    <!--文件加密部分-->>
+    <script type="text/javascript" defer=true>
+      var encrpt_seed;
+      var rsa_pub;
+      var rsa_pri;
+      //读取本地公钥文件发送给第三方可信机构
+      $("#pubImport").click(function () {
+            $("#pubFile").click();
+      })
+      function fileImport() {
+        //获取读取我文件的File对象
+        var selectedFile = document.getElementById('pubFile').files[0];
+        var reader = new FileReader();
+        reader.onload = function () {
+          //当读取完成后回调这个函数,然后此时文件的内容存储到了result中,直接操作即可
+          const trust_url = 'http://localhost:7000/setkey'      //此处为第三方信任机构的url
+          // 读取本地公钥内容
+          const pub_key = this.result;
+          rsa_pub = pub_key;
+          $.ajax({
+            url: trust_url,
+            type: "GET",
+            data: pub_key,
+            success:function(result) {
+              // 成功获得加密后的随机数种子
+              encrpt_seed = result;
+              alert("成功获取ASE密钥种子");
+            },
+            error:function(error) {
+              console.log(error)
+            }
+          })
+        }
+      }
+      // 读取本地私钥文件
+      $("#priImport").click(function () {
+            $("#priFile").click();
+      })
+      function fileImport() {
+        //获取读取我文件的File对象
+        var selectedFile = document.getElementById('priFile').files[0];
+        var reader = new FileReader();
+        reader.onload = function () {
+          rsa_pri = this.result;
+        }
+      }
+
+      //在上传文件时基于seed生成ase密钥进行加密
+      $("#fileUpload").click(function () {
+        console.log("提交文件处理函数")
+        //首先使用私钥信息解密种子
+        //var crypt = new JSEncrypt();
+        //crypt.setKey(rsa_pri);
+        //var seed = crypt.decrypt(encrpt_seed);
+        // 获得随机数种子之后使用ase加密
+        var selectedFile = document.getElementById('file').files[0];
+        console.log("获得文件");
+        var reader = new FileReader();
+        reader.readAsText(selectedFile);
+        reader.onload = function () {
+          console.log("成功读取文件内容");
+          var fileName = selectedFile.name;
+          let key = '1234567887654321';
+          var encrypted = CryptoJS.AES.encrypt(reader.result,key).ciphertext.toString();
+          var encryptFile = new Blob([encrypted], {type: 'text/html'});
+          var formData = new FormData();
+          formData.append("myfile", encryptFile, fileName);
+          $.ajax({
+            type: 'post',
+            url: 'http://localhost:5000/api/upload',
+            data: formData,
+            cache: false,
+            processData: false,
+            contentType: false,
+            success:function(result) {
+              alert("成功加密上传文件");
+            }
+          })
+        };
+      })
     </script>
 </body>
 </html>

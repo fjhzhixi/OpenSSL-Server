@@ -17,10 +17,11 @@ tishiforindex = None
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
-sql = Sql('password')   # 此处改成自己的password
+sql = Sql('997273')   # 此处改成自己的password
 
 @app.route('/api/upload', methods = ['POST'], strict_slashes = False)
 def api_upload():
+    print('upload')
     file_dir = os.path.join(basedir, app.config['UPLOAD_FOLDER'], session.get('userid'))
     if not os.path.exists(file_dir):
         os.makedirs(file_dir)
