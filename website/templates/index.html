@@ -124,7 +124,7 @@
         <div class="grid">
         {% for each in file %}
           <div class="grid-item">
-            <a href="/api/download/{{ each['name'] }}"}>
+            <a id = "download" href="/api/download/{{ each['name'] }}"}>
               {% if each['postfix'] == 'word' %}
               <img src="{{ url_for('static', filename='word.svg') }}", style="width:90%;height:90%;">
               {% elif each['postfix'] == 'excel' %}
@@ -172,24 +172,37 @@
       $("#pubImport").click(function () {
             $("#pubFile").click();
       })
-      function fileImport() {
+      function PubImport() {
         //获取读取我文件的File对象
         var selectedFile = document.getElementById('pubFile').files[0];
         var reader = new FileReader();
+        reader.readAsText(selectedFile);
         reader.onload = function () {
           //当读取完成后回调这个函数,然后此时文件的内容存储到了result中,直接操作即可
-          const trust_url = 'http://localhost:7000/setkey'      //此处为第三方信任机构的url
+          const trust_url = 'http://localhost:7000/sendkey'      //此处为第三方信任机构的url
           // 读取本地公钥内容
-          const pub_key = this.result;
-          rsa_pub = pub_key;
+          const pub_key = {
+            data: JSON.stringify({"pubkey": this.result})
+          }
+          // 前端测试加密
+          //var text = "yzxfjhxqzjh";
+          //var crypt = new JSEncrypt();
+          //crypt.setPublicKey(this.result);
+          //var enc = crypt.encrypt(text);
+          //console.log("前端测试加密");
+          //console.log(enc);
+          //encrpt_seed = enc;
+          //×××××××××××××××××××××××
+          rsa_pub = this.result;
           $.ajax({
             url: trust_url,
-            type: "GET",
+            type: "POST",
             data: pub_key,
             success:function(result) {
               // 成功获得加密后的随机数种子
-              encrpt_seed = result;
+              encrpt_seed = result['seed'];
               alert("成功获取ASE密钥种子");
+              console.log(encrpt_seed);
             },
             error:function(error) {
               console.log(error)
@@ -201,22 +214,30 @@
       $("#priImport").click(function () {
             $("#priFile").click();
       })
-      function fileImport() {
+      function PriImport() {
         //获取读取我文件的File对象
         var selectedFile = document.getElementById('priFile').files[0];
         var reader = new FileReader();
+        reader.readAsText(selectedFile);
         reader.onload = function () {
           rsa_pri = this.result;
+          alert("成功导入私钥文件");
+          console.log(rsa_pri);
         }
       }
 
       //在上传文件时基于seed生成ase密钥进行加密
       $("#fileUpload").click(function () {
-        console.log("提交文件处理函数")
+        console.log("提交文件处理函数");
+        console.log("加密种子");
+        console.log(encrpt_seed);
+        console.log("rsa私钥");
+        console.log(rsa_pri);
         //首先使用私钥信息解密种子
-        //var crypt = new JSEncrypt();
-        //crypt.setKey(rsa_pri);
-        //var seed = crypt.decrypt(encrpt_seed);
+        var crypt = new JSEncrypt();
+        crypt.setKey(rsa_pri);
+        var seed = crypt.decrypt(encrpt_seed);
+        console.log(seed);
         // 获得随机数种子之后使用ase加密
         var selectedFile = document.getElementById('file').files[0];
         console.log("获得文件");
@@ -231,7 +252,7 @@
           var formData = new FormData();
           formData.append("myfile", encryptFile, fileName);
           $.ajax({
-            type: 'post',
+            type: 'POST',
             url: 'http://localhost:5000/api/upload',
             data: formData,
             cache: false,
@@ -242,7 +263,24 @@
             }
           })
         };
-      })
+      });
+      /*
+      // 文件下载时进行解密
+      $("#download").click(function(){
+        console.log("开始下载文件")
+        var down_url = $(this).attr('href');
+        $.ajax({
+          type: 'GET',
+          url: 'http://localhost:5000' + down_url,
+          success:function(result) {
+            // 获得返回的文件
+            console.log("GET请求成功返回");
+
+            
+          }
+        })
+
+      });*/
     </script>
 </body>
 </html>
