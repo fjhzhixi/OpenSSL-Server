@@ -1,4 +1,5 @@
 import pymysql
+import hashlib
 
 #还没有登陆的异常
 class HasnotSigninException(Exception):
@@ -42,6 +43,14 @@ class MultiFilesExistError(Exception):
     def __str__(self):
         return self.error
 
+#用户id不合法(如用户id为空，id中存在空白符等)
+class IllegalUserIdError(Exception):
+    def __init__(self, value):
+        self.error = value
+    def __str__(self):
+        return self.error
+
+
 class Sql():
     def __init__(self, password):
         self.db = pymysql.connect("localhost", "root", password, "networksafety")
@@ -50,10 +59,19 @@ class Sql():
         self.has_login = False
         self.cur_user_name = ''
     
+    def contain_whitespace(self, user_id):
+        if user_id == ''.join(user_id.split()):
+            return False
+        else:
+            return True
+
     def sign_out(self):
         self.has_login = False
         self.cur_user_id = ''
         self.cur_user_name = ''
+    
+    def encryp(self, plaintext):
+        return hashlib.md5(plaintext.encode()).hexdigest()
     
     def get_curent_user_name(self):
         if self.has_login == False:
@@ -69,9 +87,10 @@ class Sql():
     # user_id和password为str类型
     # 返回True表示登录成功，否则失败
     def sign_in(self, user_id, password):
+        ciphertext_password = self.encryp(password)
         sql = """
             select UserName from User where UserId = \'%s\' and Password = \'%s\'
-        """ % (user_id, password)
+        """ % (user_id, ciphertext_password)
         self.cursor.execute(sql)
         rows = self.cursor.fetchall()
         if len(rows) == 0:
@@ -91,15 +110,20 @@ class Sql():
     # user_id, user_name, password都为str类型
     # 返回True表示注册成功，否则失败
     def sign_up(self, user_id, user_name, password):
+        if len(user_id) == 0:
+            raise IllegalUserIdError('empty user id!')
+        if self.contain_whitespace(user_id):
+            raise IllegalUserIdError('user id contains whitespace!')
         sql = "select UserName from User where UserId = \'%s\'" % (user_id)
         self.cursor.execute(sql)
         rows = self.cursor.fetchall()
         if len(rows) > 0:
             raise AccountAlreadyExistError(str(user_id))
         else:
+            ciphertext_password = self.encryp(password)
             sql = """
                 insert into User (UserId, UserName, Password) values (\'%s\', \'%s\', \'%s\')
-            """ % (user_id, user_name, password)
+            """ % (user_id, user_name, ciphertext_password)
             self.cursor.execute(sql)
             self.db.commit()
             return True
@@ -293,6 +317,4 @@ class Sql():
         rows = self.cursor.fetchall()
         return rows[0][0]
     
-
-
 
