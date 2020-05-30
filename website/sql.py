@@ -53,7 +53,7 @@ class IllegalUserIdError(Exception):
 
 class Sql():
     def __init__(self, password):
-        self.db = pymysql.connect("localhost", "root", password, "networksafety")
+        self.db = pymysql.connect("localhost", "root", password, "netdisk")
         self.cursor = self.db.cursor()
         self.cur_user_id = ''
         self.has_login = False
