@@ -87,7 +87,7 @@ class Sql():
     # user_id和password为str类型
     # 返回True表示登录成功，否则失败
     def sign_in(self, user_id, password):
-        ciphertext_password = self.encryp(password)
+        ciphertext_password = self.encryp(user_id + password)
         sql = """
             select UserName from User where UserId = \'%s\' and Password = \'%s\'
         """ % (user_id, ciphertext_password)
@@ -120,7 +120,7 @@ class Sql():
         if len(rows) > 0:
             raise AccountAlreadyExistError(str(user_id))
         else:
-            ciphertext_password = self.encryp(password)
+            ciphertext_password = self.encryp(user_id + password)
             sql = """
                 insert into User (UserId, UserName, Password) values (\'%s\', \'%s\', \'%s\')
             """ % (user_id, user_name, ciphertext_password)
