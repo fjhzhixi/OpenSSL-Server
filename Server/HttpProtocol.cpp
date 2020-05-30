@@ -8,7 +8,7 @@ CHttpProtocol::CHttpProtocol(void)
 	bio_err=0;
 	m_strRootDir=(char*)"../resource"; //资源文件的路径
 	ErrorMsg=(char*)"";
-    //���������Ļ���
+    //创建上下文环境
   	ErrorMsg=initialize_ctx();
 	if(ErrorMsg==(char*)"")
 	{
@@ -20,7 +20,7 @@ CHttpProtocol::CHttpProtocol(void)
 
 CHttpProtocol::~CHttpProtocol(void)
 {
-	// �ͷ�SSL�����Ļ���
+	// 释放SSL上下文环境
 	SSL_CTX_free(ctx);
 }
 
@@ -30,9 +30,9 @@ char * CHttpProtocol::initialize_ctx()
     
     if(!bio_err)
 	{
-		//��ʼ��OpenSSL��,����OpenSSL�����õ����㷨
+		//初始化OpenSSL库,加载OpenSSL将会用到的算法
 		SSL_library_init();
-		// ���ش����ַ���
+		// 加载错误字符串
 		SSL_load_error_strings();	
 		// An error write context 
 		bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
@@ -47,24 +47,24 @@ char * CHttpProtocol::initialize_ctx()
 	//meth = SSLv23_server_method();
     ctx = SSL_CTX_new(meth);
 
-    // ָ����ʹ�õ�֤���ļ�
+    //指定所使用的证书文件
     if(!(SSL_CTX_use_certificate_chain_file(ctx, SERVERPEM)))
 	{
 		char * Str = (char*)"SSL_CTX_use_certificate_chain_file error!";
 		return Str;
 	}
 
-	// ��������ص�����
+	// 设置密码回调函数
     SSL_CTX_set_default_passwd_cb(ctx, password_cb);
 
-	// ����˽Կ�ļ�
+	// 加载私钥文件
     if(!(SSL_CTX_use_PrivateKey_file(ctx, SERVERKEYPEM, SSL_FILETYPE_PEM)))
 	{
 		char * Str = (char*)"SSL_CTX_use_PrivateKey_file error!";
 		return Str;
 	}
 
-    // ���������ε�CA֤��
+    // 加载受信任的CA证书
     if(!(SSL_CTX_load_verify_locations(ctx, ROOTCERTPEM, 0)))
 	{
 		char * Str = (char*)"SSL_CTX_load_verify_locations error!";
@@ -115,14 +115,14 @@ void CHttpProtocol::err_exit(char * str)
 
 void CHttpProtocol::Disconnect(PREQUEST pReq)
 {
-	// �ر��׽��֣��ͷ���ռ�е���Դ
+	// 关闭套接字：释放所占有的资源
 	int	nRet;
 	printf("Closing socket! \r\n");
 	
 	nRet = close(pReq->Socket);
 	if (nRet == SOCKET_ERROR)
 	{
-		// ��������
+		// 处理错误
 		printf("Closing socket error! \r\n");
 	}
 
@@ -239,7 +239,7 @@ int CHttpProtocol::SSLRecvRequest(SSL *ssl,BIO *io, LPBYTE pBuf, DWORD dwBufSize
 	char buf[BUFSIZZ];
     int r, length=0;
 
-	memset(buf, 0, BUFSIZZ);	//��ʼ��������
+	memset(buf, 0, BUFSIZZ);	//初始化缓冲区
 	while(1)
 	{
 		r = BIO_gets(io, buf, BUFSIZZ-1);
@@ -256,9 +256,10 @@ int CHttpProtocol::SSLRecvRequest(SSL *ssl,BIO *io, LPBYTE pBuf, DWORD dwBufSize
 				//printf("Case 2... \r\n");
 				break;
 		}
-		// ֱ����������HTTPͷ�������Ŀ���
+		// 直到读到代表HTTP头部结束的空行
 		if(!strcmp(buf,"\r\n") || !strcmp(buf,"\n"))
 		{
+			// 如果为POST类型报文，则会继续读完后边的报文体
 			if(pBuf[0] == 'P' && pBuf[1] == 'O' && pBuf[2] == 'S' && pBuf[3] == 'T') {
 				
 				// printf("GET POST request!\n");
@@ -291,7 +292,7 @@ int CHttpProtocol::SSLRecvRequest(SSL *ssl,BIO *io, LPBYTE pBuf, DWORD dwBufSize
 			break;
 		}
   }
-	// ���ӽ�����
+	// 添加结束符
 	pBuf[length] = '\0';
 	return length;
 }
@@ -387,14 +388,14 @@ void * CHttpProtocol::ClientThread(LPVOID param)
 			return 0;
 		}
 		
-    io = BIO_new(BIO_f_buffer());			//��װ�˻�����������BIO��д��ýӿڵ�����һ����׼����
-											//����һ��BIO�ӿڵģ��Ӹýӿڶ���������һ��Ҳ�Ǵ���һ
-											//��BIO�������ġ�
-    ssl_bio = BIO_new(BIO_f_ssl());			//��װ��openssl ��SSLЭ���BIO���ͣ�Ҳ����ΪSSLЭ����
-											//����һЩBIO����������
-    BIO_set_ssl(ssl_bio, ssl, BIO_CLOSE);	// ��ssl(SSL����)��װ��ssl_bio(SSL_BIO����)��
-    BIO_push(io, ssl_bio);					// ��ssl_bio��װ��һ�������BIO�����У����ַ�������
-											// ����ʹ��BIO_*�����������������͵�IO����,�Ӷ�ʵ�ֶ�SSL���ӵĻ������д 
+    io = BIO_new(BIO_f_buffer());			//封装了缓冲区操作的BIO，写入该接口的数据一般是准备传
+											//入下一个BIO接口的，从该接口读出的数据一般也是从另一
+											//个BIO传过来的。
+    ssl_bio = BIO_new(BIO_f_ssl());			//封装了openssl 的SSL协议的BIO类型，也就是为SSL协议增
+											//加了一些BIO操作方法。
+    BIO_set_ssl(ssl_bio, ssl, BIO_CLOSE);	// 把ssl(SSL对象)封装在ssl_bio(SSL_BIO对象)中
+    BIO_push(io, ssl_bio);					// 把ssl_bio封装在一个缓冲的BIO对象中，这种方法允许
+											// 我们使用BIO_*函数族来操作新类型的IO对象,从而实现对SSL连接的缓冲读和写 
 	
 	// 接受request data
 	printf("****************\r\n");
@@ -410,6 +411,7 @@ void * CHttpProtocol::ClientThread(LPVOID param)
 			//return 0;								
 	}
 	if (msgLen > 0) {
+		// 将接收到的请求，发送给后台web服务器
 		pHttpProtocol->MsgTrans(pHttpProtocol, ssl, io, buf, msgLen);
 	}
 	/*
@@ -428,7 +430,7 @@ void * CHttpProtocol::ClientThread(LPVOID param)
 	}
 	BIO_flush(io);
 
-	// ��client��������
+	// 向client传送数据
 	if(pReq->nMethod == METHOD_GET)
 	{
 		printf("Sending..............................\n");
@@ -446,6 +448,7 @@ void * CHttpProtocol::ClientThread(LPVOID param)
 	return NULL;
 }
 
+// 用于与后台Web服务器交互
 void CHttpProtocol::MsgTrans(CHttpProtocol *pHttpProtocol, SSL *ssl, BIO *io, unsigned char *msgBuf, int msgLen) {
 	int skfd;
 	unsigned char buf[8196];
@@ -462,12 +465,14 @@ void CHttpProtocol::MsgTrans(CHttpProtocol *pHttpProtocol, SSL *ssl, BIO *io, un
 	sockAddr.sin_family = AF_INET;
 	sockAddr.sin_addr.s_addr = inet_addr("0.0.0.0");
 	sockAddr.sin_port = htons(HTTPPORT);
-	
+	// 与Web服务器建立TCP连接
 	if(connect(skfd, (struct sockaddr *)(&sockAddr), sizeof(sockaddr))) {
 		printf("ERROR: webserver connect error!\n");
 		close(skfd);
 		return;
 	}
+	
+	// 发送请求报文
 	unsigned int size = 0, nodeSize = 0, msize = 0;
 	while(size < msgLen) {
 		if( (nodeSize = write(skfd, msgBuf + size, msgLen - size)) < 0) {
@@ -482,7 +487,7 @@ void CHttpProtocol::MsgTrans(CHttpProtocol *pHttpProtocol, SSL *ssl, BIO *io, un
 	printf("OK: finished sending to webserver!\n");
 	
 	
-
+	// 接收Web服务器的相应，并转发会浏览器
 	// bool flag = true;
 	while(memset(buf, 0, sizeof(buf)), (msize = read(skfd, buf, sizeof(buf) - 5)) > 0) {
 		size = 0;
@@ -615,11 +620,11 @@ void CHttpProtocol::GetCurrentTime(LPSTR lpszString)
 
 bool CHttpProtocol::GetContentType(PREQUEST pReq, LPSTR type)
 {
-	// ȡ���ļ�������
+	// 取得文件的类型
     char * cpToken;
     cpToken = strstr(pReq->szFileName, ".");
     strcpy(pReq->postfix, cpToken);
-	// �����������ļ����Ͷ�Ӧ��content-type
+	// 遍历搜索该文件类型对应的content-type
 	map<char *, char *>::iterator it = m_typeMap.find(pReq->postfix);
 	if(it != m_typeMap.end())
 	{
