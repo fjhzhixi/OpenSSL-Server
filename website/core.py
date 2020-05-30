@@ -1,3 +1,4 @@
+#coding:utf-8
 from flask import Flask, render_template, redirect, url_for, request, session, jsonify, send_file, send_from_directory, make_response
 from werkzeug.utils import secure_filename
 from sql import *
@@ -13,14 +14,17 @@ app.config["SECRET_KEY"] = "010016"
 UPLOAD_FOLDER = "upload"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 basedir = os.path.abspath(os.path.dirname(__file__))
+#允许的文件类型
 ALLOWED_EXTENSIONS = set(['txt', 'png', 'jpg', 'pdf', 'word', 'excel', 'ppt'])
 tishiforindex = None
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
+#初始化sql类
 sql = Sql('password')   # 此处改成自己的password
 
+#文件上传函数
 @app.route('/api/upload', methods = ['POST'], strict_slashes = False)
 def api_upload():
     print('upload')
@@ -47,6 +51,7 @@ def api_upload():
         tishiforindex = "文件格式不符合要求"
         return redirect(url_for('index'))
 
+#文件下载函数
 @app.route('/api/download/<filename>', methods = ['GET'])
 def download_file(filename):
     directory = sql.select_file_path_by_name(filename)
@@ -54,7 +59,7 @@ def download_file(filename):
     response.headers["Content-Disposition"] = "attachment; filename={}".format(filename.encode().decode('latin-1'))
     return response
 
-
+#注册界面
 @app.route('/register', methods = ['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -67,6 +72,7 @@ def register():
             return redirect(url_for('login'))
     return render_template('register.html', tishi = None)
 
+#登录界面
 @app.route('/login', methods = ['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -81,12 +87,14 @@ def login():
             return redirect(url_for('index'))
     return render_template('login.html', error = None, tishi = None)
 
+#登出方法
 @app.route('/logout')
 def logout():
     sql.sign_out()
     session.pop('userid')
     return redirect(url_for('login'))
 
+#主界面，若未登录则跳转到登录界面
 @app.route('/')
 def index():
     user_id = session.get('userid')
