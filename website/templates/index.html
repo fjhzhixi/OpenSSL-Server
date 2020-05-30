@@ -10,6 +10,7 @@
     <script src="{{ url_for('static', filename='js/bootstrap.min.js')}}"></script>
     <script src="{{ url_for('static', filename='js/jsencrypt.min.js')}}"></script>
     <script src="{{ url_for('static', filename='js/crypto-js.js')}}"></script>
+    <script src="{{ url_for('static', filename='js/download.js')}}"></script>
     <style type="text/css">
 		.demo {
 		  position: relative;
@@ -124,7 +125,7 @@
         <div class="grid">
         {% for each in file %}
           <div class="grid-item">
-            <a id = "download" href="/api/download/{{ each['name'] }}"}>
+            <!--a id = "download" href="/api/download/{{ each['name'] }}"}-->
               {% if each['postfix'] == 'word' %}
               <img src="{{ url_for('static', filename='word.svg') }}", style="width:90%;height:90%;">
               {% elif each['postfix'] == 'excel' %}
@@ -143,8 +144,9 @@
               {% else %}
               <img src="{{ url_for('static', filename='default.svg') }}", style="width:90%;height:90%;">
               {% endif %}
-            </a>
+            <!--/a-->
             <p style="text-align:center">{{ each['name'] }}</p>
+            <button id="download_{{ each['name'] }}" name="{{ each['name'] }}" style="display:block;margin:0 auto">下载</button>
           </div>
         {% endfor %}
         </div>
@@ -163,7 +165,7 @@
           });
         })();
     </script>
-    <!--文件加密部分-->>
+    <!--文件加密部分-->
     <script type="text/javascript" defer=true>
       var encrpt_seed;
       var rsa_pub;
@@ -173,7 +175,7 @@
             $("#pubFile").click();
       })
       function PubImport() {
-        //获取读取我文件的File对象
+        //获取读取文件的File对象
         var selectedFile = document.getElementById('pubFile').files[0];
         var reader = new FileReader();
         reader.readAsText(selectedFile);
@@ -245,15 +247,19 @@
         reader.readAsText(selectedFile);
         reader.onload = function () {
           console.log("成功读取文件内容");
+          console.log(reader.result)
           var fileName = selectedFile.name;
-          let key = '1234567887654321';
-          var encrypted = CryptoJS.AES.encrypt(reader.result,key).ciphertext.toString();
+          // 使用获得的seed种子进行ase加密
+          var ase_key = CryptoJS.enc.Utf8.parse(seed);
+          var srcs = CryptoJS.enc.Utf8.parse(reader.result);
+          var encrypted = CryptoJS.AES.encrypt(srcs, ase_key,
+            {mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7}).ciphertext.toString();
           var encryptFile = new Blob([encrypted], {type: 'text/html'});
           var formData = new FormData();
           formData.append("myfile", encryptFile, fileName);
           $.ajax({
             type: 'POST',
-            url: 'http://localhost:5000/api/upload',
+            url: 'https://localhost:8000/api/upload',
             data: formData,
             cache: false,
             processData: false,
@@ -264,23 +270,54 @@
           })
         };
       });
-      /*
+      
       // 文件下载时进行解密
-      $("#download").click(function(){
+      $("button[id^='download']").click(function(){
         console.log("开始下载文件")
-        var down_url = $(this).attr('href');
+        var filename = $(this).attr('name');
+        var down_url = 'https://localhost:8000/api/download/' + filename;
         $.ajax({
           type: 'GET',
-          url: 'http://localhost:5000' + down_url,
-          success:function(result) {
-            // 获得返回的文件
-            console.log("GET请求成功返回");
-
-            
+          url: down_url,
+          //success: download.bind(true, "text/plain", filename)
+          success:function(result){
+            console.log("下载文件请求成功返回");
+            console.log(result);
+            var file = result;
+            console.log("申请文件加密种子");
+            const trust_url = 'http://localhost:7000/sendkey'      //此处为第三方信任机构的url
+            $.ajax({
+              url: trust_url,
+              type: "GET",
+              success:function(result) {
+                // 成功获得加密后的随机数种子
+                encrpt_seed = result['seed'];
+                console.log(encrpt_seed);
+                //首先使用私钥信息解密种子
+                var crypt = new JSEncrypt();
+                crypt.setKey(rsa_pri);
+                var seed = crypt.decrypt(encrpt_seed);
+                console.log("解密ASE密钥种子得");
+                console.log(seed);
+                //download(result, filename, "text/plain");
+                // 对下载文件进行解密
+                let encryptedHexStr = CryptoJS.enc.Hex.parse(file);
+                let srcs = CryptoJS.enc.Base64.stringify(encryptedHexStr);
+                var ase_key = CryptoJS.enc.Utf8.parse(seed);
+                var decrypted = CryptoJS.AES.decrypt(srcs, ase_key, 
+                  {mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7})
+                var decrypt_res = decrypted.toString(CryptoJS.enc.Utf8);
+                console.log("解密后文件内容");
+                console.log(decrypt_res);
+                download(decrypt_res, filename, "text/plain");
+              },
+              error:function(error) {
+                console.log(error)
+              }
+            })
           }
         })
-
-      });*/
+      });
     </script>
 </body>
 </html>

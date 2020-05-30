@@ -1,54 +1,81 @@
 from flask import Flask, json, request, Response
-import rsa
+from Crypto import Random
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_v1_5 as PKCS1_cipher
+from Crypto.Cipher import AES
+from binascii import b2a_hex, a2b_hex
 import base64
 import binascii
 
 app = Flask(__name__)
 
-aseKey = 'yzxfjhxqzjh'
+aseKey = '1234123412ABCDEF'
+pubkey_gl = ''
+#mode = AES.MODE_OFB
 
-def str2key(s):
-    # 对字符串解码
-    b_str = base64.b64decode(s)
-
-    hex_str = ''
-
-    # 按位转换成16进制
-    for x in b_str:
-        h = hex(x)[2:]
-        h = h.rjust(2, '0')
-        hex_str += h
-
-    # 找到模数和指数的开头结束位置
-    m_start = 29 * 2
-    e_start = 159 * 2
-    m_len = 128 * 2
-    e_len = 3 * 2
-
-    modulus_ = hex_str[m_start:m_start + m_len]
-    exponent_ = hex_str[e_start:e_start + e_len]
-
-    modulus = int(modulus_, 16)
-    exponent = int(exponent_, 16)
-    pubkey = rsa.PublicKey(modulus, exponent)
-    return pubkey
-
-@app.route('/sendkey', methods = ['POST'])
+@app.route('/sendkey', methods = ['GET', 'POST'])
 def key_data():
-    data_ = request.form['data']
-    data = json.loads(data_)
-    pubkey_ = data['pubkey']
-    print("收到的公钥：")
-    print(pubkey_)
-    pubkey = str2key(pubkey_)
-    seed_ = rsa.encrypt(aseKey.encode('utf8'), pubkey)
-    seed = binascii.hexlify(seed_)
-    info=dict()
-    print(seed)
-    info['seed'] = bytes.decode(seed)
-    resp = Response(json.dumps(info), mimetype='application/json')
-    resp.headers['Access-Control-Allow-Origin'] = '*'
-    return resp
+    global pubkey_gl
+    if request.method == 'GET':
+        if pubkey_gl == '':
+            print("wrong")
+            info=dict()
+            info['seed'] = "empty"
+            resp = Response(json.dumps(info), mimetype='application/json')
+            resp.headers['Access-Control-Allow-Origin'] = '*'
+            return resp
+        pubkey = RSA.importKey(pubkey_gl)
+        #
+        cipher = PKCS1_cipher.new(pubkey)
+        seed_ = base64.b64encode(cipher.encrypt(bytes(aseKey.encode("utf8"))))
+        seed = seed_.decode("utf8")
+        print(pubkey_gl)
+        print(seed)
+        #
+        info=dict()
+        info['seed'] = seed
+        resp = Response(json.dumps(info), mimetype='application/json')
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        return resp
+    '''
+    AES
+    cryptor = AES.new(aseKey.encode('utf-8'), mode, b'0000000000000000')
+    length = 16
+    message = "123"
+    count = len(message)
+    if count % length != 0:
+        add = length - (count % length)
+    else:
+        add = 0
+    message = message + ('\0' * add)
+    print(len(message))
+    ciphertext = cryptor.encrypt(message)
+    result = b2a_hex(ciphertext)
+    print(result.decode('utf-8'))
+    
+    cryptor = AES.new(aseKey.encode('utf-8'), mode, b'0000000000000000')
+    plain_text = cryptor.decrypt(a2b_hex(result))
+    print(plain_text.decode('utf-8').rstrip('\0'))
+    '''
+     #
+    if request.method == 'POST':
+        data_ = request.form['data']
+        data = json.loads(data_)
+        pubkey_ = data['pubkey']
+        pubkey_gl = pubkey_
+        pubkey = RSA.importKey(pubkey_)  
+        #
+        cipher = PKCS1_cipher.new(pubkey)
+        seed_ = base64.b64encode(cipher.encrypt(bytes(aseKey.encode("utf8"))))
+        seed = seed_.decode("utf8")
+        print(pubkey_gl)
+        print(seed)
+        #
+        info=dict()
+        info['seed'] = seed
+        resp = Response(json.dumps(info), mimetype='application/json')
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        return resp
 
 if __name__ == '__main__':
     app.run(debug=True, port=7000)

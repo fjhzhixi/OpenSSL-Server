@@ -5,8 +5,10 @@ from sql import *
 import time
 import os
 import base64
+from flask_cors import *
 
 app = Flask(__name__)
+CORS(app, supports_credentials=True)
 app.config["SECRET_KEY"] = "010016"
 UPLOAD_FOLDER = "upload"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
