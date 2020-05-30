@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+<!--云盘主页面-->
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -81,20 +82,8 @@
           </ul> 
       </div> 
     </nav>
-    <!--上传文件-->
-    
-    <!--
+    <!--上传文件到云盘的按钮-->
     <div>
-      <form method="post" action="/api/upload" enctype="multipart/form-data">
-            <input type="file" name="myfile"/></input>
-            <input type="submit" value="提交"></input>
-      </form>
-    </div>
-  -->
-    
-    
-    <div>
-      <!--form id = "upload" method="post" action="/api/upload" enctype="multipart/form-data"-->
         <label for="file" id="myfile">上传文件</label>
         <input type="file" style="display:inline-block;float: right;" id="file" name="myfile"></input>
         <button tyle="float:left" type="submit" id= "fileUpload">提交</button>
@@ -102,6 +91,7 @@
     <div>
       <p id="fileName"></p>
     </div>
+    <!--加载RSA公钥和私钥文件的接口-->
     <div>
       公钥文件：<br>
       <input type="file" id="pubFile" style="display: none" onchange="PubImport();">
@@ -151,6 +141,7 @@
         {% endfor %}
         </div>
     </div>
+    <!--显示要上传的文件名-->
     <script src="{{ url_for('static', filename='js/minigrid.js')}}"></script>
     <script>
         (function(){
@@ -186,15 +177,6 @@
           const pub_key = {
             data: JSON.stringify({"pubkey": this.result})
           }
-          // 前端测试加密
-          //var text = "yzxfjhxqzjh";
-          //var crypt = new JSEncrypt();
-          //crypt.setPublicKey(this.result);
-          //var enc = crypt.encrypt(text);
-          //console.log("前端测试加密");
-          //console.log(enc);
-          //encrpt_seed = enc;
-          //×××××××××××××××××××××××
           rsa_pub = this.result;
           $.ajax({
             url: trust_url,
